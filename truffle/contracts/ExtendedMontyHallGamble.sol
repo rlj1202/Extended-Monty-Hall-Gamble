@@ -15,7 +15,7 @@ contract ExtendedMontyHallGamble {
   }
 
   struct Door {
-    address participant;
+    address payable participant;
     DoorType doorType;
   }
 
@@ -25,70 +25,100 @@ contract ExtendedMontyHallGamble {
     uint doorIdx;
   }
 
-  // TODO:
-  event Test();
+  event GameStarted();
+  event ParticipatingCompleted();
+  event SwitchingCompleted();
+  event DoorChoosing(address who, uint doorIdx);
+  event GameWinner(uint round, address winner, uint reward);
 
   address public gameHost;
+  uint public participatingFee;
 
   Door[] doors;
-  address[] participants;
+  address payable[] participants;
   mapping (address => Participant) addressToParticipants;
 
+  uint round;
   GamePhase phase;
 
   uint participatingPhase;
   uint switchingPhase;
 
-  constructor(uint size) payable {
-    initGame(size);
-    startGame();
-
-    gameHost = msg.sender;
-  }
-
-  /// Initialize the game.
-  /// @param size The number of doors
-  function initGame(uint size) private {
+  /// @param size The number of doors.
+  /// @param _participatingFee The fee needed to participate in the game.
+  constructor(uint size, uint _participatingFee) payable {
     require(
       size >= 3,
       "The number of doors must be greater than or equal to 3."
     );
 
+    for (uint i = 0; i < size; i++) {
+      doors.push(Door(payable(address(0x0)), DoorType.GOAT));
+    }
+
+    initGame();
+    startGame();
+
+    gameHost = msg.sender;
+    participatingFee = _participatingFee;
+  }
+
+  /// Initialize the game.
+  function initGame() private {
     // Delete all data in previous game.
     for (uint i = 0; i < participants.length; i++) {
       delete addressToParticipants[participants[i]];
     }
     delete participants;
-    delete doors;
+
+    for (uint i = 0; i < doors.length; i++) {
+      delete doors[i];
+    }
 
     // Reset all phase values.
     phase = GamePhase.INIT;
 
     participatingPhase = 0;
     switchingPhase = 0;
-
-    // Recreate doors
-    doors = new Door[](size);
   }
 
   function startGame() private {
     phase = GamePhase.PARTICIPATING;
 
     placeSportsCars();
+
+    emit GameStarted();
   }
 
   function finalizeGame() private {
-    require(phase == GamePhase.END);
+    require(phase == GamePhase.END, "The game is not on end phase.");
+
+    uint winners = 0;
 
     for (uint i = 0; i < doors.length; i++) {
-      if (doors[i].doorType == DoorType.SPORTS_CAR && doors[i].participant != address(0x0)) {
-        // TODO:
+      if (doors[i].doorType != DoorType.SPORTS_CAR) continue;
+      if (doors[i].participant == address(0x0)) continue;
 
-        uint test = address(this).balance;
+      winners++;
+    }
+
+    if (winners > 0) {
+      uint reward = address(this).balance / winners;
+
+      for (uint i = 0; i < doors.length; i++) {
+        if (doors[i].doorType != DoorType.SPORTS_CAR) continue;
+        if (doors[i].participant == address(0x0)) continue;
+
+        (bool sent, /* bytes memory data */) = doors[i].participant.call{ value: reward }("");
+        require(sent, "Failed to send ether to winner.");
+
+        emit GameWinner(round, doors[i].participant, reward);
       }
     }
 
-    initGame(doors.length);
+    round++;
+
+    initGame();
     startGame();
   }
 
@@ -118,6 +148,32 @@ contract ExtendedMontyHallGamble {
     return doors.length;
   }
 
+  /// Returns the balance of the smart contract.
+  function getBalance() external view returns (uint) {
+    return address(this).balance;
+  }
+
+  /// Returns the participating fee of the game.
+  function getParticipatingFee() external view returns (uint) {
+    return participatingFee;
+  }
+
+  /// Returns the phase of the game.
+  function getPhase() external view returns (GamePhase) {
+    return phase;
+  }
+
+  // Returns occupation information of doors.
+  function getDoors() external view returns (address[] memory) {
+    address[] memory occupations = new address[](doors.length);
+
+    for (uint i = 0; i < doors.length; i++) {
+      occupations[i] = doors[i].participant;
+    }
+
+    return occupations;
+  }
+
   /// Get participated in the game.
   /// @param doorIdx The index number of the door the participant chosen.
   function participate(uint doorIdx) external payable {
@@ -137,12 +193,11 @@ contract ExtendedMontyHallGamble {
     );
 
     require(
-      // TODO:
-      msg.value > 1 wei,
+      msg.value >= participatingFee,
       "The participant must pay fee."
     );
 
-    participants.push(msg.sender);
+    participants.push(payable(msg.sender));
 
     chooseDoor(doorIdx);
 
@@ -150,6 +205,8 @@ contract ExtendedMontyHallGamble {
     participatingPhase++;
     if (participatingPhase == doors.length / 3) {
       phase = GamePhase.SWITCHING;
+
+      emit ParticipatingCompleted();
     }
   }
 
@@ -173,6 +230,8 @@ contract ExtendedMontyHallGamble {
     if (switchingPhase == doors.length / 3) {
       phase = GamePhase.END;
       finalizeGame();
+
+      emit SwitchingCompleted();
     }
   }
 
@@ -189,11 +248,13 @@ contract ExtendedMontyHallGamble {
 
     if (addressToParticipants[msg.sender].chosenDoor == true) {
       uint prevDoorIdx = addressToParticipants[msg.sender].doorIdx;
-      doors[prevDoorIdx].participant = address(0x0);
+      doors[prevDoorIdx].participant = payable(address(0x0));
     }
 
-    doors[doorIdx].participant = msg.sender;
+    doors[doorIdx].participant = payable(msg.sender);
     addressToParticipants[msg.sender].doorIdx = doorIdx;
     addressToParticipants[msg.sender].chosenDoor = true;
+
+    emit DoorChoosing(msg.sender, doorIdx);
   }
 }
