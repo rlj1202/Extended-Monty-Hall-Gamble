@@ -17,6 +17,7 @@ contract ExtendedMontyHallGamble {
   struct Door {
     address payable participant;
     DoorType doorType;
+    bool open;
   }
 
   struct Participant {
@@ -25,9 +26,9 @@ contract ExtendedMontyHallGamble {
     uint doorIdx;
   }
 
-  event GameStarted();
-  event ParticipatingCompleted();
-  event SwitchingCompleted();
+  event GameStarted(uint round);
+  event ParticipatingCompleted(uint round);
+  event SwitchingCompleted(uint round);
   event DoorChoosing(address who, uint doorIdx);
   event GameWinner(uint round, address winner, uint reward);
 
@@ -53,7 +54,7 @@ contract ExtendedMontyHallGamble {
     );
 
     for (uint i = 0; i < size; i++) {
-      doors.push(Door(payable(address(0x0)), DoorType.GOAT));
+      doors.push(Door(payable(address(0x0)), DoorType.GOAT, false));
     }
 
     initGame();
@@ -87,7 +88,7 @@ contract ExtendedMontyHallGamble {
 
     placeSportsCars();
 
-    emit GameStarted();
+    emit GameStarted(round);
   }
 
   function finalizeGame() private {
@@ -122,8 +123,8 @@ contract ExtendedMontyHallGamble {
     startGame();
   }
 
-  function placeSportsCars() private {
-    uint[] memory permutation = new uint[](doors.length);
+  function genPermutation(uint len) private view returns (uint[] memory) {
+    uint[] memory permutation = new uint[](len);
 
     for (uint i = 0; i < permutation.length; i++) {
       permutation[i] = i;
@@ -137,6 +138,12 @@ contract ExtendedMontyHallGamble {
       permutation[a] = permutation[b];
       permutation[b] = temp;
     }
+
+    return permutation;
+  }
+
+  function placeSportsCars() private {
+    uint[] memory permutation = genPermutation(doors.length);
 
     for (uint i = 0; i < doors.length / 3; i++) {
       doors[permutation[i]].doorType = DoorType.SPORTS_CAR;
@@ -163,7 +170,12 @@ contract ExtendedMontyHallGamble {
     return phase;
   }
 
-  // Returns occupation information of doors.
+  /// Returns the number of rounds of the game.
+  function getRound() external view returns (uint) {
+    return round;
+  }
+
+  /// Returns occupation information of doors.
   function getDoors() external view returns (address[] memory) {
     address[] memory occupations = new address[](doors.length);
 
@@ -172,6 +184,17 @@ contract ExtendedMontyHallGamble {
     }
 
     return occupations;
+  }
+
+  /// Returns goats locations
+  function getGoats() external view returns (bool[] memory) {
+    bool[] memory goats = new bool[](doors.length);
+
+    for (uint i = 0; i < doors.length; i++) {
+      goats[i] = doors[i].open;
+    }
+
+    return goats;
   }
 
   /// Get participated in the game.
@@ -206,7 +229,24 @@ contract ExtendedMontyHallGamble {
     if (participatingPhase == doors.length / 3) {
       phase = GamePhase.SWITCHING;
 
-      emit ParticipatingCompleted();
+      // Decide goat locations to open to public
+      uint[] memory freeGoats = new uint[](doors.length);
+      uint goats_len = 0;
+
+      for (uint i = 0; i < doors.length; i++) {
+        if (doors[i].participant != address(0x0)) continue;
+        if (doors[i].doorType != DoorType.GOAT) continue;
+
+        freeGoats[goats_len++] = i;
+      }
+
+      uint[] memory perm = genPermutation(goats_len);
+
+      for (uint i = 0; i < doors.length / 3; i++) {
+        doors[freeGoats[perm[i]]].open = true;
+      }
+
+      emit ParticipatingCompleted(round);
     }
   }
 
@@ -231,7 +271,7 @@ contract ExtendedMontyHallGamble {
       phase = GamePhase.END;
       finalizeGame();
 
-      emit SwitchingCompleted();
+      emit SwitchingCompleted(round);
     }
   }
 

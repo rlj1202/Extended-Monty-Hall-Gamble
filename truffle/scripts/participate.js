@@ -21,10 +21,16 @@ module.exports = async function (callback) {
   const fee = (await deployed.getParticipatingFee()).toNumber();
   console.log(`Current fee of the game: ${fee}`);
 
+  const rounds = (await deployed.getRound()).toNumber();
+  console.log(`Rounds: ${rounds}`);
+
   console.log(`Participating`);
   await deployed
     .participate(0, { from: accounts[1], value: 100 })
     .catch((err) => console.log(`${err}`));
+
+  const goats = await deployed.getGoats();
+  console.log(goats);
 
   console.log(`Switching`);
   await deployed
