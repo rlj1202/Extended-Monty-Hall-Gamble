@@ -1,7 +1,13 @@
-import { EthProvider, useEth } from "./contexts/EthContext";
+import { EthProvider, useEth } from "../contexts/EthContext";
 import "./App.css";
 import { useEffect, useState } from "react";
 import { useCallback } from "react";
+import {
+  BrowserRouter as Router,
+  Switch,
+  Route,
+  Link
+} from "react-router-dom";
 
 function Door({ phase, index, address, open }) {
   const {
@@ -111,15 +117,15 @@ function Main() {
 
 function App() {
   return (
-    <EthProvider>
-      <div id="App">
-        <div className="container">
-          <h1>Extended Monty-Hall Gamble</h1>
-          <hr />
-          <Main />
+      <EthProvider>
+        <div id="App">
+          <div className="container">
+            <h1>Extended Monty-Hall Gamble</h1>
+            <hr />
+            <Main />
+          </div>
         </div>
-      </div>
-    </EthProvider>
+      </EthProvider>
   );
 }
 
