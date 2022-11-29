@@ -2,12 +2,8 @@ import { EthProvider, useEth } from "../contexts/EthContext";
 import "./App.css";
 import { useEffect, useState } from "react";
 import { useCallback } from "react";
-import {
-  BrowserRouter as Router,
-  Switch,
-  Route,
-  Link
-} from "react-router-dom";
+
+
 
 function Door({ phase, index, address, open }) {
   const {
@@ -25,7 +21,6 @@ function Door({ phase, index, address, open }) {
       await contract.methods
         .switchDoor(index)
         .send({ from: accounts[0], value: 0 });
-
       console.log("switchDoor");
     }
   }
@@ -93,7 +88,7 @@ function Main() {
 
   return (
     <div>
-      <div>{accounts && accounts[0]}</div>
+      <div>Account: {accounts && accounts[0]}</div>
       <div>{networkID}</div>
       <div>doors: {size}</div>
       <div>phase: {phase}</div>
@@ -115,7 +110,7 @@ function Main() {
   );
 }
 
-function App() {
+const App = () => {
   return (
       <EthProvider>
         <div id="App">
