@@ -29,11 +29,11 @@ contract ExtendedMontyHallGamble {
   event GameStarted(uint round);
   event ParticipatingCompleted(uint round);
   event SwitchingCompleted(uint round);
-  event DoorChoosing(address who, uint doorIdx);
+  event DoorChosen(address participant, uint doorIdx);
   event GameWinner(uint round, address winner, uint reward);
 
-  address public gameHost;
-  uint public participatingFee;
+  address gameHost;
+  uint participatingFee;
 
   Door[] doors;
   address payable[] participants;
@@ -42,11 +42,11 @@ contract ExtendedMontyHallGamble {
   uint round;
   GamePhase phase;
 
-  uint participatingPhase;
-  uint switchingPhase;
+  uint participantNum;
+  uint switchedNum;
 
   /// @param size The number of doors.
-  /// @param _participatingFee The fee needed to participate in the game.
+  /// @param _participatingFee The fee is needed to participate in the game.
   constructor(uint size, uint _participatingFee) payable {
     require(
       size >= 3,
@@ -79,8 +79,8 @@ contract ExtendedMontyHallGamble {
     // Reset all phase values.
     phase = GamePhase.INIT;
 
-    participatingPhase = 0;
-    switchingPhase = 0;
+    participantNum = 0;
+    switchedNum = 0;
   }
 
   function startGame() private {
@@ -130,13 +130,12 @@ contract ExtendedMontyHallGamble {
       permutation[i] = i;
     }
 
-    for (uint i = 0; i < permutation.length * 2; i++) {
-      uint a = uint256(keccak256(abi.encodePacked(block.timestamp, gameHost, i * 2))) % permutation.length;
-      uint b = uint256(keccak256(abi.encodePacked(block.timestamp, gameHost, i * 2 + 1))) % permutation.length;
+    for (uint256 i = 0; i < len - 1; i++) {
+        uint256 a = uint256(keccak256(abi.encodePacked(block.timestamp, gameHost, i))) % (len - i);
 
-      uint temp = permutation[a];
-      permutation[a] = permutation[b];
-      permutation[b] = temp;
+        uint256 temp = permutation[a];
+        permutation[a] = permutation[len - i - 1];
+        permutation[len - i - 1] = temp;
     }
 
     return permutation;
@@ -225,30 +224,36 @@ contract ExtendedMontyHallGamble {
     chooseDoor(doorIdx);
 
     addressToParticipants[msg.sender].inPhase = GamePhase.PARTICIPATING;
-    participatingPhase++;
-    if (participatingPhase == doors.length / 3) {
+    participantNum++;
+    if (participantNum == doors.length / 3) {
       phase = GamePhase.SWITCHING;
-
-      // Decide goat locations to open to public
-      uint[] memory freeGoats = new uint[](doors.length);
-      uint goats_len = 0;
-
-      for (uint i = 0; i < doors.length; i++) {
-        if (doors[i].participant != address(0x0)) continue;
-        if (doors[i].doorType != DoorType.GOAT) continue;
-
-        freeGoats[goats_len++] = i;
-      }
-
-      uint[] memory perm = genPermutation(goats_len);
-
-      for (uint i = 0; i < doors.length / 3; i++) {
-        doors[freeGoats[perm[i]]].open = true;
-      }
+      
+      startSwitching();
 
       emit ParticipatingCompleted(round);
     }
   }
+
+  function startSwitching() private {
+    require(phase == GamePhase.SWITCHING, "The game is not on switching phase.");
+
+    // Decide goat locations to open to public
+    uint[] memory freeGoats = new uint[](doors.length);
+    uint goats_len = 0;
+
+    for (uint i = 0; i < doors.length; i++) {
+      if (doors[i].participant != address(0x0)) continue;
+      if (doors[i].doorType != DoorType.GOAT) continue;
+
+      freeGoats[goats_len++] = i;
+    }
+
+    uint[] memory perm = genPermutation(goats_len);
+
+    for (uint i = 0; i < doors.length / 3; i++) {
+      doors[freeGoats[perm[i]]].open = true;
+    }
+  } 
 
   /// Switch door if participant wants.
   /// Otherwise, choose same door index.
@@ -266,8 +271,8 @@ contract ExtendedMontyHallGamble {
     chooseDoor(doorIdx);
 
     addressToParticipants[msg.sender].inPhase = GamePhase.SWITCHING;
-    switchingPhase++;
-    if (switchingPhase == doors.length / 3) {
+    switchedNum++;
+    if (switchedNum == doors.length / 3) {
       phase = GamePhase.END;
       finalizeGame();
 
@@ -278,7 +283,7 @@ contract ExtendedMontyHallGamble {
   function chooseDoor(uint doorIdx) private {
     require(
       doors[doorIdx].participant == address(0x0) || doors[doorIdx].participant == msg.sender,
-      "The door the participant chosen must be equal as previous or be empty."
+      "The door the participant choose must be equal as previous or be empty."
     );
 
     require(
@@ -295,6 +300,6 @@ contract ExtendedMontyHallGamble {
     addressToParticipants[msg.sender].doorIdx = doorIdx;
     addressToParticipants[msg.sender].chosenDoor = true;
 
-    emit DoorChoosing(msg.sender, doorIdx);
+    emit DoorChosen(msg.sender, doorIdx);
   }
 }
