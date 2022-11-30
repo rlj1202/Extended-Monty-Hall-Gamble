@@ -3,35 +3,7 @@ import "./App.css";
 import { useEffect, useState } from "react";
 import { useCallback } from "react";
 
-
-
-function Door({ phase, index, address, open }) {
-  const {
-    state: { artifact, web3, accounts, contract },
-  } = useEth();
-
-  const value = parseInt(address);
-
-  async function chooseDoor() {
-    if (phase === 1) {
-      await contract.methods
-        .participate(index)
-        .send({ from: accounts[0], value: 100 });
-    } else if (phase === 2) {
-      await contract.methods
-        .switchDoor(index)
-        .send({ from: accounts[0], value: 0 });
-      console.log("switchDoor");
-    }
-  }
-
-  return (
-    <div onClick={chooseDoor} className="door">
-      {value ? address : ""}
-      <div>{open ? "GOAT" : ""}</div>
-    </div>
-  );
-}
+import Door from "../Door/Door";
 
 function Main() {
   const {
@@ -112,16 +84,16 @@ function Main() {
 
 const App = () => {
   return (
-      <EthProvider>
-        <div id="App">
-          <div className="container">
-            <h1>Extended Monty-Hall Gamble</h1>
-            <hr />
-            <Main />
-          </div>
+    <EthProvider>
+      <div id="App">
+        <div className="container">
+          <h1>Extended Monty-Hall Gamble</h1>
+          <hr />
+          <Main />
         </div>
-      </EthProvider>
+      </div>
+    </EthProvider>
   );
-}
+};
 
 export default App;
