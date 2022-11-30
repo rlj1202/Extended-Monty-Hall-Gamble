@@ -1,14 +1,16 @@
 import { EthProvider, useEth } from "../contexts/EthContext";
 import "./App.css";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useCallback } from "react";
 
 import Door from "../Door/Door";
 
-function Main() {
+const Main = () => {
   const {
-    state: { artifact, web3, accounts, networkID, contract },
+    state: { artifact, web3, active, accounts, networkID, contract },
   } = useEth();
+
+  const loggingRef = useRef();
 
   const [size, setSize] = useState(0);
   const [doors, setDoors] = useState([]);
@@ -35,6 +37,13 @@ function Main() {
     setGoats(await contract.methods.getGoats().call({ from: accounts[0] }));
   }, [contract, accounts]);
 
+  const log = (msg) => {
+    if (!loggingRef) return;
+    if (!loggingRef.current) return;
+
+    loggingRef.current.textContent += JSON.stringify(msg);
+  };
+
   useEffect(() => {
     if (!contract) return;
     if (!accounts) return;
@@ -43,29 +52,35 @@ function Main() {
 
     contract.events.ParticipatingCompleted({}, (error, event) => {
       console.log(event);
+      log(event);
       fetchData();
     });
     contract.events.SwitchingCompleted({}, (error, event) => {
       console.log(event);
+      log(event);
       fetchData();
     });
     contract.events.DoorChosen({}).on("data", (event) => {
       console.log(event);
+      log(event);
       fetchData();
     });
     contract.events.GameWinner({}).on("data", (event) => {
       console.log(event.returnValues);
+      log(event);
+      fetchData();
     });
-  }, [contract, accounts, fetchData]);
+  }, [contract, accounts, fetchData, active]);
 
   return (
     <div>
       <div>Account: {accounts && accounts[0]}</div>
       <div>{networkID}</div>
       <div>doors: {size}</div>
+      <div>max # of participants: {Math.floor(size / 3)}</div>
       <div>phase: {phase}</div>
-      <div>balance: {balanace}</div>
-      <div>fee: {fee}</div>
+      <div>balance: {balanace} wei</div>
+      <div>fee: {fee} wei</div>
       <div>rounds: {rounds}</div>
       <div className="doors">
         {doors.map((address, index) => (
@@ -78,9 +93,15 @@ function Main() {
           />
         ))}
       </div>
+      <textarea
+        className="logging"
+        placeholder="Logging..."
+        readOnly
+        ref={loggingRef}
+      ></textarea>
     </div>
   );
-}
+};
 
 const App = () => {
   return (
