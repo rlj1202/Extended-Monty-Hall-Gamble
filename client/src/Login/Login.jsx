@@ -6,34 +6,33 @@ import "./Login.css";
 
 export default function Login() {
   const { chainId, account, active, activate, deactivate } = useWeb3React();
+
   const handleConnect = () => {
     if (active) {
       deactivate();
-      return;
+    } else {
+      activate(injected, (error) => {
+        if (isNoEthereumObject(error))
+          window.open("https://metamask.io/download.html");
+      });
     }
-    activate(injected, (error) => {
-      if (isNoEthereumObject(error))
-        window.open("https://metamask.io/download.html");
-    });
   };
+
   return (
-    <div>
-      <nav className="navbar navbar-dark bg-dark">
-        <div className="container">
-          <a className="navbar-brand" href="/">
-            Extended Monty-Hall Gamble
-          </a>
-        </div>
-      </nav>
-      <div className="Login">
+    <div className="bg-dark">
+      <nav className="navbar navbar-dark container d-flex flex-row align-items-center px-4">
+        <a className="navbar-brand" href="/">
+          Extended Monty-Hall Gamble
+        </a>
+
         <button
           className="btn btn-primary"
-          type="Login"
+          type="button"
           onClick={handleConnect}
         >
           {active ? "Logout" : "Login"}
         </button>
-      </div>
+      </nav>
     </div>
   );
 }
