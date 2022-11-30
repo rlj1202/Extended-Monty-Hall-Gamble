@@ -77,7 +77,7 @@ function Main() {
       console.log(event);
       fetchData();
     });
-    contract.events.DoorChoosing({}).on("data", (event) => {
+    contract.events.DoorChosen({}).on("data", (event) => {
       console.log(event);
       fetchData();
     });
