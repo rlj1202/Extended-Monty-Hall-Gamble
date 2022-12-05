@@ -1,9 +1,16 @@
 import { EthProvider, useEth } from "../contexts/EthContext";
 import "./App.css";
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useCallback } from "react";
 
 import Door from "../Door/Door";
+
+/**
+ * @typedef Door
+ * @property {string} doorType
+ * @property {boolean} open
+ * @property {string} participant
+ */
 
 const Main = () => {
   const {
@@ -13,16 +20,22 @@ const Main = () => {
   const loggingRef = useRef();
 
   const [size, setSize] = useState(0);
+  /** @type {[Door[], React.Dispatch<React.SetStateAction<Door[]>> ]} */
   const [doors, setDoors] = useState([]);
   const [phase, setPhase] = useState(0);
   const [balanace, setBalance] = useState(0);
   const [rounds, setRounds] = useState(0);
   const [fee, setFee] = useState(0);
-  const [goats, setGoats] = useState([]);
+
+  const [gameEnded, setGameEnded] = useState(false);
+  /** @type {[Door[], React.Dispatch<React.SetStateAction<Door[]>> ]} */
+  const [lastDoors, setLastDoors] = useState([]);
 
   const fetchData = useCallback(async () => {
     if (!contract) return;
     if (!accounts) return;
+
+    console.log("Fetch data...");
 
     setSize(await contract.methods.getSize().call({ from: accounts[0] }));
     setDoors(await contract.methods.getDoors().call({ from: accounts[0] }));
@@ -34,8 +47,12 @@ const Main = () => {
     setFee(
       await contract.methods.getParticipatingFee().call({ from: accounts[0] })
     );
-    setGoats(await contract.methods.getGoats().call({ from: accounts[0] }));
   }, [contract, accounts]);
+
+  const refresh = useCallback(async () => {
+    fetchData();
+    setGameEnded(false);
+  }, [fetchData]);
 
   const log = (msg) => {
     if (!loggingRef) return;
@@ -66,9 +83,18 @@ const Main = () => {
       fetchData();
     });
     contract.events.GameWinner({}).on("data", (event) => {
-      console.log(event.returnValues);
+      console.log(event);
       log(event);
       fetchData();
+    });
+    contract.events.GameEnded({}).on("data", (event) => {
+      console.log(event);
+      log(event);
+
+      /** @type {Door[]} */
+      const doors = event.returnValues.doors;
+      setLastDoors(doors);
+      setGameEnded(true);
     });
   }, [contract, accounts, fetchData, active]);
 
@@ -82,16 +108,29 @@ const Main = () => {
       <div>balance: {balanace} wei</div>
       <div>fee: {fee} wei</div>
       <div>rounds: {rounds}</div>
+      {gameEnded && <button onClick={refresh}>Restart Game</button>}
       <div className="doors">
-        {doors.map((address, index) => (
-          <Door
-            phase={phase}
-            index={index}
-            address={address}
-            open={goats[index]}
-            key={index}
-          />
-        ))}
+        {!gameEnded
+          ? doors.map((info, index) => (
+              <Door
+                phase={phase}
+                index={index}
+                address={info.participant}
+                open={info.open}
+                doorType={info.doorType}
+                key={index}
+              />
+            ))
+          : lastDoors.map((info, index) => (
+              <Door
+                phase={3}
+                index={index}
+                address={info.participant}
+                open={info.open}
+                doorType={info.doorType}
+                key={index}
+              />
+            ))}
       </div>
       <textarea
         className="logging"

@@ -4,7 +4,8 @@ pragma solidity >=0.4.22 <0.9.0;
 contract ExtendedMontyHallGamble {
   enum DoorType {
     GOAT,
-    SPORTS_CAR
+    SPORTS_CAR,
+    UNKNOWN
   }
 
   enum GamePhase {
@@ -31,6 +32,7 @@ contract ExtendedMontyHallGamble {
   event SwitchingCompleted(uint round);
   event DoorChosen(address participant, uint doorIdx);
   event GameWinner(uint round, address winner, uint reward);
+  event GameEnded(Door[] doors);
 
   address gameHost;
   uint participatingFee;
@@ -117,6 +119,8 @@ contract ExtendedMontyHallGamble {
       }
     }
 
+    emit GameEnded(doors);
+
     round++;
 
     initGame();
@@ -174,27 +178,45 @@ contract ExtendedMontyHallGamble {
     return round;
   }
 
-  /// Returns occupation information of doors.
-  function getDoors() external view returns (address[] memory) {
-    address[] memory occupations = new address[](doors.length);
+  /// Returns information of doors.
+  function getDoors() external view returns (Door[] memory) {
+    Door[] memory results = new Door[](doors.length);
 
     for (uint i = 0; i < doors.length; i++) {
-      occupations[i] = doors[i].participant;
+      results[i].participant = doors[i].participant;
+      results[i].open = doors[i].open;
+
+      if (phase == GamePhase.END || doors[i].open) {
+        results[i].doorType = doors[i].doorType;
+      } else {
+        results[i].doorType = DoorType.UNKNOWN;
+      }
     }
 
-    return occupations;
+    return results;
   }
+
+  /// Returns occupation information of doors.
+  // function getDoors() external view returns (address[] memory) {
+  //   address[] memory occupations = new address[](doors.length);
+
+  //   for (uint i = 0; i < doors.length; i++) {
+  //     occupations[i] = doors[i].participant;
+  //   }
+
+  //   return occupations;
+  // }
 
   /// Returns goats locations
-  function getGoats() external view returns (bool[] memory) {
-    bool[] memory goats = new bool[](doors.length);
+  // function getGoats() external view returns (bool[] memory) {
+  //   bool[] memory goats = new bool[](doors.length);
 
-    for (uint i = 0; i < doors.length; i++) {
-      goats[i] = doors[i].open;
-    }
+  //   for (uint i = 0; i < doors.length; i++) {
+  //     goats[i] = doors[i].open;
+  //   }
 
-    return goats;
-  }
+  //   return goats;
+  // }
 
   /// Get participated in the game.
   /// @param doorIdx The index number of the door the participant chosen.
@@ -274,9 +296,10 @@ contract ExtendedMontyHallGamble {
     switchedNum++;
     if (switchedNum == doors.length / 3) {
       phase = GamePhase.END;
-      finalizeGame();
 
       emit SwitchingCompleted(round);
+
+      finalizeGame();
     }
   }
 
