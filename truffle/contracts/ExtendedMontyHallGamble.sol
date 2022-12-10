@@ -47,6 +47,8 @@ contract ExtendedMontyHallGamble {
   uint participantNum;
   uint switchedNum;
 
+  uint randomCnt;
+
   /// @param size The number of doors.
   /// @param _participatingFee The fee is needed to participate in the game.
   constructor(uint size, uint _participatingFee) payable {
@@ -127,7 +129,28 @@ contract ExtendedMontyHallGamble {
     startGame();
   }
 
-  function genPermutation(uint len) private view returns (uint[] memory) {
+  function genRandomNumber() private returns (uint256) {
+    address[] memory occupations = new address[](doors.length);
+
+    for (uint i = 0; i < doors.length; i++) {
+      occupations[i] = doors[i].participant;
+    }
+
+    uint256 result = uint256(keccak256(abi.encodePacked(
+      block.timestamp,
+      gameHost,
+      randomCnt,
+      round,
+      participants,
+      occupations
+    )));
+
+    randomCnt++;
+    
+    return result;
+  }
+
+  function genPermutation(uint len) private returns (uint[] memory) {
     uint[] memory permutation = new uint[](len);
 
     for (uint i = 0; i < permutation.length; i++) {
@@ -135,7 +158,7 @@ contract ExtendedMontyHallGamble {
     }
 
     for (uint256 i = 0; i < len - 1; i++) {
-        uint256 a = uint256(keccak256(abi.encodePacked(block.timestamp, gameHost, i))) % (len - i);
+        uint256 a = genRandomNumber() % (len - i);
 
         uint256 temp = permutation[a];
         permutation[a] = permutation[len - i - 1];
