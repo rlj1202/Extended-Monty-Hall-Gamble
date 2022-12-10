@@ -30,6 +30,7 @@ const Main = () => {
   const [gameEnded, setGameEnded] = useState(false);
   /** @type {[Door[], React.Dispatch<React.SetStateAction<Door[]>> ]} */
   const [lastDoors, setLastDoors] = useState([]);
+  const [reward, setReward] = useState(0);
 
   const fetchData = useCallback(async () => {
     if (!contract) return;
@@ -85,6 +86,15 @@ const Main = () => {
     contract.events.GameWinner({}).on("data", (event) => {
       console.log(event);
       log(event);
+
+      /** @type {{ reward: number, round: number, winner: string }} */
+      const { reward, round, winner } = event.returnValues;
+
+      if (accounts && accounts[0] === winner) {
+        // You are the winner!!!
+        setReward(reward);
+      }
+
       fetchData();
     });
     contract.events.GameEnded({}).on("data", (event) => {
@@ -108,6 +118,7 @@ const Main = () => {
       <div>balance: {balanace} wei</div>
       <div>fee: {fee} wei</div>
       <div>rounds: {rounds}</div>
+      {gameEnded && reward > 0 && <div>You earned {reward} wei!</div>}
       {gameEnded && <button onClick={refresh}>Restart Game</button>}
       <div className="doors">
         {!gameEnded
